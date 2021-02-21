@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import 'bootstrap/wtf.html' as wtf %}
+{% block app_content %}
+{#    <div class="col-sm-8">#}
+    <div>
+        <h4 class="d-inline-block">Chatting with {{ bot_name }} in {{ room }}</h4>
+        <a class="text-muted" href="#" onclick="leave_room();">Leave this room</a>
+    </div><br>
+    <div id="chatContainer" style="overflow: auto; height: 300px;">
+        {{ table }}
+    </div>
+    <input class=form-control id="text" type="text" size="80" placeholder="Enter your message here"><br>
+    <div class="col-sm-8">
+        <h6 class="d-inline-block">Suggestions:</h6>
+        {% if suggestions %}
+            {% for suggestion in suggestions %}
+                <button type="button" class="btn btn-default" onclick="use_suggestion('{{ suggestion }}')">{{ suggestion }}</button>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">No ideas</p>
+        {% endif %}
+    </div>
+{% endblock %}
+{% block scripts %}
+    {{ super() }}
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+    <script type="text/javascript" charset="utf-8">
+        var socket;
+        $(document).ready(function(){
+            socket = io.connect('http://' + document.domain + ':' + location.port + '/chat');
+            socket.on('connect', function() {
+                socket.emit('joined', {});
+            });
+            socket.on('status', function(data) {
+                {#$('#chat').val($('#chat').val() + '<' + data.msg + '>\n');#}
+                $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
+            });
+            socket.on('message', function(data) {
+                {#$('#chat').val($('#chat').val() + data.msg + '\n');#}
+                {#$('#chat').scrollTop($('#chat')[0].scrollHeight);#}
+                window.location.href = "{{ url_for('main.chat') }}";
+            });
+            $('#text').keypress(function(e) {
+                var code = e.keyCode || e.which;
+                if (code == 13) {
+                    text = $('#text').val();
+                    $('#text').val('');
+                    socket.emit('text', {msg: text});
+                }
+            });
+        });
+        function leave_room() {
+            socket.emit('left', {}, function() {
+                socket.disconnect();
+
+                // go back to the login page
+                window.location.href = "{{ url_for('main.index') }}";
+            });
+        }
+        function use_suggestion(suggestion) {
+            socket.emit('text', {msg: suggestion});
+        }
+    </script>
+{% endblock %}
+
