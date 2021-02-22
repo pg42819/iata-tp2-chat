@@ -7,7 +7,9 @@ from chatlog import chatio
 
 class LoginForm(FlaskForm):
     """Accepts a nickname and room."""
-    name = StringField('Your name', validators=[DataRequired()])
+    name = StringField('Your name', validators=[DataRequired(),
+                                                Regexp(r'^[\w.@+-]*$'),
+                                                Length(min=0, max=25)])
     bot = SelectField('Chat With', choices=bots.get_bot_choices())
     room = StringField('Room name',
                        validators=[Regexp(r'^[\w.@+-]*$'), Length(min=0, max=25)],
@@ -23,7 +25,7 @@ class ChatForm(FlaskForm):
 
 class SuggestionForm(FlaskForm):
     pattern = StringField(label='Pattern:', validators=[DataRequired()], description=
-    'Use wildcards for AIML-like patterns. See https://pandorabots.com/docs/aiml-fundamentals/')
+                          'Use wildcards for AIML-like patterns')
     suggestion = StringField(label='Suggested response:', validators=[DataRequired()])
     srai = BooleanField(label='Wrap in SRAI')
     submit = SubmitField('Add suggestion')

@@ -5,6 +5,9 @@ from lxml import etree
 import xml.dom.minidom
 import os
 import xml.sax.saxutils as saxutils
+
+from chat import bots
+
 DATE_FORMAT = "%Y %m %d"
 TIME_FORMAT = "%H:%M:%S"
 DATE_COMMA_TIME_FORMAT = f'{DATE_FORMAT},{TIME_FORMAT}'
@@ -16,9 +19,11 @@ SUGGEST_FILE = "suggestions"
 SUGGEST_COLS = 'pattern,suggestion'
 
 
-def find_file(name, suffix, dir_name=LOG_DIR, start_fresh=False):
+def find_file(name, suffix, dir_name=None, start_fresh=False):
     app_dir = Path(__file__).resolve().parent.parent.parent
-    data_dir = app_dir / DATA_DIR / dir_name
+    data_dir = app_dir / DATA_DIR
+    if dir_name is not None:
+        data_dir = data_dir / dir_name
     if not data_dir.exists():
         data_dir.mkdir()
     filename = f'{name}{suffix}'
@@ -69,10 +74,15 @@ def to_aiml_template(message: str, srai):
     return template
 
 
+# Add a new custom suggestion, store it in csv and also in the AIML file
+# then update the bot based on the aiml file
 def add_suggestion(pattern, message, srai=True, start_fresh=False):
     template = to_aiml_template(message, srai)
     add_suggestion_csv(pattern, template, start_fresh)
     add_suggestion_aiml(pattern, template, start_fresh)
+    # update the suggest bot to reload the aiml
+    bots.update_suggest_bot()
+
 
 def add_suggestion_csv(pattern, message, start_fresh=False):
     csv_file = find_suggest_file(start_fresh)
@@ -103,7 +113,7 @@ def get_suggestion_for(pattern):
 
 
 def get_suggestion_aiml_file(start_fresh=False):
-    aiml_file = find_file(name="suggestions", suffix=".aiml", dir_name=LOG_DIR)
+    aiml_file = bots.get_suggest_aiml_path()
     if not aiml_file.exists() or start_fresh:
         new_aiml_file(aiml_file)
     return str(aiml_file)
@@ -130,7 +140,6 @@ def add_suggestion_aiml(pattern, template, start_fresh=False):
     pattern = etree.SubElement(category, "pattern").text = pattern
     template = etree.SubElement(category, "template").text = template
     save_xml(aiml, aiml_file)
-
 
 def save_xml(root, file_path):
     xml_string = xml.dom.minidom.parseString(

@@ -1,3 +1,5 @@
+from typing import List, Dict
+
 from flask import Flask
 from flask import session, redirect, url_for, render_template, request, flash
 
@@ -22,9 +24,6 @@ def index():
         control.init_bots(bot)
         if room is None or room.strip() == '':
             room = f"{name}_and_{control.current_bot().name}"
-        if session['name'] is None:
-            flash('Invalid name. Try again with a longer name')
-            return redirect(url_for('.index'))
         session['name'] = name
         session['bot'] = bot
         session['room'] = room
@@ -38,16 +37,25 @@ def index():
 
 @bp.route('/chat')
 def chat():
-    name = session.get('name', '')
+    user = session.get('name', '')
     bot = bots.get_bot(session.get('bot', ''))
     room = session.get('room', '')
     start_fresh = session.get('start_fresh', '')
     log_data = chatio.load_conversation(room, start_fresh)
     if start_fresh:
         session['start_fresh'] = False
-    table_lines = log_data.to_dict('records')
+    table_lines: List[Dict] = log_data.to_dict('records')
+
     table = tables.ChatTable(table_lines)
-    suggestions = control.latest_suggestions()
+
+    last_message: str = None
+    if table_lines:
+        last_line = table_lines[-1]
+        # if the last line was not me - prime the suggestions with the last message
+        if last_line["user"] != user:
+            last_message = last_line["message"]
+
+    suggestions = control.latest_suggestions(last_message)
     return render_template('chat.html', table=table, room=room, bot_name=bot.name,
                            suggestions=suggestions)
 

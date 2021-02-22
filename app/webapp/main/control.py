@@ -1,4 +1,4 @@
-from collections import OrderedDict, Set
+from collections import OrderedDict
 from random import random
 from time import sleep
 from typing import List
@@ -11,8 +11,26 @@ from app.chat import bots
 from app.chat.bots import Bot
 from app.chatlog.chatio import log_chat
 
+JS_ESCAPES = {
+    '\\': '\\u005C',
+    '\'': '\\u0027',
+    '"': '\\u0022',
+    '>': '\\u003E',
+    '<': '\\u003C',
+    '&': '\\u0026',
+    '=': '\\u003D',
+    '-': '\\u002D',
+    ';': '\\u003B',
+    u'\u2028': '\\u2028',
+    u'\u2029': '\\u2029'
+}
+# Escape every ASCII character with a value less than 32.
+JS_ESCAPES.update(('%c' % z, '\\u%04X' % z) for z in range(32))
+
 _current_bot: Bot = None
 _suggestion_bots: List[Bot] = list()
+_last_bot_response: str = None
+
 # Dict of suggestions keying to the bot so as to avoid duplicate suggestions
 _suggestions: OrderedDict = OrderedDict()
 
@@ -51,6 +69,8 @@ def current_bot() -> Bot:
 
 
 def suggestion_bots() -> List[Bot]:
+    if len(_suggestion_bots) == 0:
+        init_bots(session['bot'])
     return _suggestion_bots
 
 
@@ -68,14 +88,25 @@ def record_message(room, user, msg):
 def update_suggestions(message):
     global _suggestions
     global _custom_suggestion
-    for bot in _suggestion_bots:
+    for bot in suggestion_bots():
         suggestion = bot.respond(message)
         flask.current_app.logger.info(f"{bot.name} suggests: {suggestion}")
-        # using a dict to ensure no duplicate suggestions
-        _suggestions[suggestion] = bot
+        # using a dict to ensure no duplicate suggestions but skip empties
+        if suggestion is not None:
+            suggestion = escapejs(suggestion)
+            if len(suggestion) > 0:
+                _suggestions[suggestion] = bot
+    return _suggestions
+
+
+def escapejs(value):
+    value = str(value).strip()
+    escaped = "".join(JS_ESCAPES.get(l, l) for l in value)
+    return escaped
 
 
 def react_to_message(room, user, msg):
+    global _last_bot_response
     record_message(room=room, user=user, msg=msg)
     """ React to the users latest message, by asking a Bot to respond """
     bot = current_bot()
@@ -83,6 +114,7 @@ def react_to_message(room, user, msg):
     dramatic_pause()
     # Give some suggested responses to the bot message
     update_suggestions(bot_response)
+    _last_bot_response = bot_response
     record_message(room=room, user=bot.name, msg=bot_response)
     # emit_msg('bot', room, user, msg)
 
@@ -95,9 +127,15 @@ def dramatic_pause():
 
 def clear_suggestions():
     _suggestions.clear()
+    print(f"cleared suggestions now: {len(_suggestions)}")
 
 
-def latest_suggestions():
+def latest_suggestions(last_message=None):
     """ get the latest suggestions to return to the user"""
+    if len(_suggestions) == 0:
+        if _last_bot_response is not None:
+            return update_suggestions(_last_bot_response)
+        elif last_message is not None:
+            return update_suggestions(last_message)
     return _suggestions
 

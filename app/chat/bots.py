@@ -6,18 +6,19 @@ from app.aiml import Kernel
 import re
 
 QUIT_PATTERN = re.compile("^\s*([qQ])\s*$")
-PROJECT_HOME = Path(__file__).resolve().parent.parent
+PROJECT_HOME = Path(__file__).resolve().parent.parent.parent
 AIML_ALICE = 'alice'
 AIML_STANDARD = 'standard'
 AIML_SUGGEST = 'suggestbot'
 SUGGEST_BOT_FILE = "suggestions.aiml"
 BOT_SPECS = {
-    AIML_ALICE : (AIML_ALICE, 'Alice', 'LOAD ALICE'),
+    AIML_ALICE: (AIML_ALICE, 'Alice', 'LOAD ALICE'),
     AIML_STANDARD: (AIML_STANDARD, 'Stan', 'LOAD AIML B')
 }
 
 
 all_bots = dict()
+_suggest_bot = None
 
 def load_bot(aiml_name):
     aiml,name,commands = BOT_SPECS[aiml_name]
@@ -26,20 +27,33 @@ def load_bot(aiml_name):
 
 
 def load_custom_bot(aiml_name, aiml_file_path, name="SuggestBot"):
-    bot = Bot(aiml_name=aiml_name, name=name, commands=None, aiml_file=aiml_file_path, custom=True)
+    bot = Bot(aiml_name=aiml_name, name=name, commands='', aiml_file=aiml_file_path, custom=True)
     return bot
-
 
 
 def init_bots():
     global all_bots
+    global _suggest_bot
     if not all_bots:
         for spec_name in BOT_SPECS.keys():
             all_bots[spec_name] = load_bot(spec_name)
-        all_bots[AIML_SUGGEST] = load_custom_bot(aiml_name=AIML_SUGGEST,
-                                                 aiml_file_path=str(data_path(SUGGEST_BOT_FILE)),
-                                                 name="SuggestBot")
+        init_suggest_bot()
         print("Bots initialized", file=sys.stderr)
+
+
+def get_suggest_aiml_path():
+   return data_path(SUGGEST_BOT_FILE)
+
+
+def init_suggest_bot():
+    global _suggest_bot
+    global all_bots
+    _suggest_bot = load_custom_bot(aiml_name=AIML_SUGGEST,
+                                   aiml_file_path=str(get_suggest_aiml_path()),
+                                   name="SuggestBot")
+    all_bots[AIML_SUGGEST] = _suggest_bot
+    print("SuggestBot initialized", file=sys.stderr)
+    return _suggest_bot
 
 
 def get_bot_choices():
@@ -63,8 +77,16 @@ def get_bot(aiml_name):
         __fail("Bots not initialized")
 
 
+# tell suggest bot to reload
+def update_suggest_bot():
+    suggest_bot = get_bot(AIML_SUGGEST)
+    if suggest_bot is None:
+        suggest_bot = init_suggest_bot()
+    suggest_bot.relearn()
+
+
 def aiml_path(aiml_name):
-    bot_dir = PROJECT_HOME / 'aiml' / 'botdata' / aiml_name
+    bot_dir = PROJECT_HOME / 'app' / 'aiml' / 'botdata' / aiml_name
     if not bot_dir.exists():
         __fail(f"Cannot find the bot dir at {bot_dir}")
     return bot_dir
@@ -78,7 +100,7 @@ def data_path(aiml_name):
 
 
 def brain_path(name):
-    brains_dir = PROJECT_HOME / 'saved_brains'
+    brains_dir = PROJECT_HOME / 'data' / 'saved_brains'
     if not brains_dir.exists():
         brains_dir.mkdir()
     brain_file = brains_dir / f'{name}.brn'
@@ -120,6 +142,7 @@ class Bot:
         self.aiml_name = aiml_name
         self.kernel = Kernel()
         self.kernel.verbose(verbose)
+        self.aiml_file = aiml_file
         print(f"Initializing Kernel for {aiml_name}")
         load_brain_or_learn(name, self.kernel, aiml_name, commands, aiml_file)
 
@@ -132,6 +155,13 @@ class Bot:
     # Tell the bot who it's talking to
     def set_correspondent_name(self, my_name):
         self.kernel.setPredicate('name', my_name)
+
+    def relearn(self):
+        if self.aiml_file is None:
+            print(f"Bots without specific files cannot relearn: {self.name}", file=sys.stderr)
+        print(f"{self.name} is relearning from {self.aiml_file}")
+        self.kernel.learn(self.aiml_file)
+
 
     def quit(self):
         save_brain(self.aiml_name, self.kernel)
