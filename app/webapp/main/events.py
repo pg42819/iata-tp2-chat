@@ -22,9 +22,10 @@ def text(message):
     user = session.get('name')
     msg = message['msg']
     # log the chat
-    control.emit_message(room=room, user=user, msg=msg)
+    control.clear_suggestions()
     control.react_to_message(room=room, user=user, msg=msg)
     # routes.chat()
+
 
 @socketio.on('left', namespace='/chat')
 def left(message):

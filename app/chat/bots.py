@@ -9,6 +9,8 @@ QUIT_PATTERN = re.compile("^\s*([qQ])\s*$")
 PROJECT_HOME = Path(__file__).resolve().parent.parent
 AIML_ALICE = 'alice'
 AIML_STANDARD = 'standard'
+AIML_SUGGEST = 'suggestbot'
+SUGGEST_BOT_FILE = "suggestions.aiml"
 BOT_SPECS = {
     AIML_ALICE : (AIML_ALICE, 'Alice', 'LOAD ALICE'),
     AIML_STANDARD: (AIML_STANDARD, 'Stan', 'LOAD AIML B')
@@ -23,10 +25,20 @@ def load_bot(aiml_name):
     return bot
 
 
+def load_custom_bot(aiml_name, aiml_file_path, name="SuggestBot"):
+    bot = Bot(aiml_name=aiml_name, name=name, commands=None, aiml_file=aiml_file_path, custom=True)
+    return bot
+
+
+
 def init_bots():
+    global all_bots
     if not all_bots:
         for spec_name in BOT_SPECS.keys():
             all_bots[spec_name] = load_bot(spec_name)
+        all_bots[AIML_SUGGEST] = load_custom_bot(aiml_name=AIML_SUGGEST,
+                                                 aiml_file_path=str(data_path(SUGGEST_BOT_FILE)),
+                                                 name="SuggestBot")
         print("Bots initialized", file=sys.stderr)
 
 
@@ -58,6 +70,13 @@ def aiml_path(aiml_name):
     return bot_dir
 
 
+def data_path(aiml_name):
+    aiml_file = PROJECT_HOME / 'data' / aiml_name
+    if not aiml_file.exists():
+        __fail(f"Cannot find the bot dir at {aiml_file}")
+    return aiml_file
+
+
 def brain_path(name):
     brains_dir = PROJECT_HOME / 'saved_brains'
     if not brains_dir.exists():
@@ -66,14 +85,20 @@ def brain_path(name):
     return brain_file
 
 
-def load_brain_or_learn(name, kernel, aiml_name, commands):
+def load_brain_or_learn(name, kernel, aiml_name, commands, aiml_file=None):
     brain_file = brain_path(name)
     if not brain_file.exists():
-        bot_dir = aiml_path(aiml_name=aiml_name)
-        startup_file = bot_dir / "startup.xml"
-        if not startup_file.exists():
-            __fail(f"Cannot find a learning startup file at {startup_file}")
-        kernel.bootstrap(learnFiles="startup.xml", commands=commands, chdir=bot_dir)
+        if aiml_file is None:
+            # use a builtin aiml bot (alice or standard)
+            bot_dir = aiml_path(aiml_name=aiml_name)
+            startup_file = bot_dir / "startup.xml"
+            if not startup_file.exists():
+                __fail(f"Cannot find a learning startup file at {startup_file}")
+            else:
+                kernel.bootstrap(learnFiles="startup.xml", commands=commands, chdir=bot_dir)
+        else:
+            # specific file so load it
+            kernel.bootstrap(learnFiles=aiml_file, commands=commands)
         kernel.saveBrain(brain_file)
     else:
         kernel.bootstrap(brainFile=brain_file, commands=commands)
@@ -85,14 +110,18 @@ def save_brain(name, kernel):
 
 
 class Bot:
-    def __init__(self, name, aiml_name="standard", commands="LOAD AIML B", verbose=False):
+    """
+    Bot class encapsulates anu Aiml BOT for use in the tp2 chat application
+    """
+    def __init__(self, name, aiml_name, commands, aiml_file=None, verbose=False, custom=False):
         self.verbose = verbose
+        self.custom = custom
         self.name = name
         self.aiml_name = aiml_name
         self.kernel = Kernel()
         self.kernel.verbose(verbose)
         print(f"Initializing Kernel for {aiml_name}")
-        load_brain_or_learn(name, self.kernel, aiml_name, commands)
+        load_brain_or_learn(name, self.kernel, aiml_name, commands, aiml_file)
 
     def respond(self, message="askquestion"):
         msg = message.strip()
@@ -107,8 +136,6 @@ class Bot:
     def quit(self):
         save_brain(self.aiml_name, self.kernel)
 
-
-
     def __verbose(self, msg, obj=None):
         if self.verbose:
             print(f'{self.name}: {msg}')
@@ -118,7 +145,7 @@ class Bot:
 
 # call from a command line tool
 def command_line(aiml_name):
-    bot = Bot(aiml_name)
+    bot = load_bot(aiml_name)
     done = False
     response = 'say something'
     while done is False:

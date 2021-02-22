@@ -1,9 +1,9 @@
 from flask_wtf import FlaskForm
 from wtforms.fields import StringField, SubmitField, SelectField, BooleanField
-from wtforms.validators import DataRequired, Length, Regexp
+from wtforms.validators import DataRequired, Length, Regexp, ValidationError
 
 from app.chat import bots
-
+from chatlog import chatio
 
 class LoginForm(FlaskForm):
     """Accepts a nickname and room."""
@@ -19,3 +19,18 @@ class LoginForm(FlaskForm):
 class ChatForm(FlaskForm):
     message = StringField('Message', validators=[DataRequired()])
     submit = SubmitField('Say it!')
+
+
+class SuggestionForm(FlaskForm):
+    pattern = StringField(label='Pattern:', validators=[DataRequired()], description=
+    'Use wildcards for AIML-like patterns. See https://pandorabots.com/docs/aiml-fundamentals/')
+    suggestion = StringField(label='Suggested response:', validators=[DataRequired()])
+    srai = BooleanField(label='Wrap in SRAI')
+    submit = SubmitField('Add suggestion')
+
+    def validate_pattern(self, pattern):
+        pass
+        # existing = chatio.get_suggestion_for(pattern=pattern.data)
+        # if existing is not None:
+        #     raise ValidationError('Please use a different pattern - this one is already used.')
+

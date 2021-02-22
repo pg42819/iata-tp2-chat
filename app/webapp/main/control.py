@@ -1,3 +1,4 @@
+from collections import OrderedDict, Set
 from random import random
 from time import sleep
 from typing import List
@@ -8,11 +9,12 @@ from flask_socketio import emit
 
 from app.chat import bots
 from app.chat.bots import Bot
-from app.chatlog.chatlog import log_chat
+from app.chatlog.chatio import log_chat
 
 _current_bot: Bot = None
 _suggestion_bots: List[Bot] = list()
-_suggestions: List[str] = list()
+# Dict of suggestions keying to the bot so as to avoid duplicate suggestions
+_suggestions: OrderedDict = OrderedDict()
 
 
 def init_bots(current_aiml_name=None):
@@ -41,8 +43,10 @@ def add_suggestion_bot(bot):
     flask.current_app.logger.info(f"Added suggestion bot: {bot.aiml_name}")
 
 
-
 def current_bot() -> Bot:
+    global _current_bot
+    if _current_bot is None:
+        _current_bot = bots.get_bot(session['bot'])
     return _current_bot
 
 
@@ -50,29 +54,37 @@ def suggestion_bots() -> List[Bot]:
     return _suggestion_bots
 
 
-def emit_message(room, user, msg):
-    log_chat(room, user, msg)
-    # emit the message to update the UI
+def emit_msg(type, room, user, msg):
     message = f"{user}:{msg}"
-    emit('message', {'msg': message}, room=room)
-    # print(f'Emitted message from {user}: {msg}')
+    emit(type, {'msg': message}, room=room)
+
+
+def record_message(room, user, msg):
+    # store the message
+    log_chat(room, user, msg)
+    emit_msg('message', room, user, msg)
 
 
 def update_suggestions(message):
     global _suggestions
+    global _custom_suggestion
     for bot in _suggestion_bots:
         suggestion = bot.respond(message)
-        flask.current_app.logger.info(f"{bot.name} suggests {suggestion}")
-        _suggestions.append(suggestion)
+        flask.current_app.logger.info(f"{bot.name} suggests: {suggestion}")
+        # using a dict to ensure no duplicate suggestions
+        _suggestions[suggestion] = bot
 
 
 def react_to_message(room, user, msg):
+    record_message(room=room, user=user, msg=msg)
     """ React to the users latest message, by asking a Bot to respond """
     bot = current_bot()
     bot_response = bot.respond(msg)
-    update_suggestions(bot_response)
     dramatic_pause()
-    emit_message(room=room, user=bot.name, msg=bot_response)
+    # Give some suggested responses to the bot message
+    update_suggestions(bot_response)
+    record_message(room=room, user=bot.name, msg=bot_response)
+    # emit_msg('bot', room, user, msg)
 
 
 def dramatic_pause():
@@ -81,11 +93,11 @@ def dramatic_pause():
     sleep(random() * max_seconds)
 
 
-def latest_suggestions(max):
+def clear_suggestions():
+    _suggestions.clear()
+
+
+def latest_suggestions():
     """ get the latest suggestions to return to the user"""
-    suggestions = []
-    for i in range(max):
-        if _suggestions:
-            suggestions.append(_suggestions.pop())
-    return suggestions
+    return _suggestions
 

@@ -2,9 +2,9 @@ from flask import Flask
 from flask import session, redirect, url_for, render_template, request, flash
 
 from app.webapp.main import tables, control, bp, forms
-from app.webapp.main.forms import LoginForm
-from app.chatlog import chatlog
-from app.chatlog.chatlog import log_chat
+from app.webapp.main.forms import LoginForm, SuggestionForm
+from app.chatlog import chatio
+from app.chatlog.chatio import log_chat
 from app.chat import bots
 from app.chat.bots import Bot
 
@@ -42,11 +42,27 @@ def chat():
     bot = bots.get_bot(session.get('bot', ''))
     room = session.get('room', '')
     start_fresh = session.get('start_fresh', '')
-    log_data = chatlog.load_conversation(room, start_fresh)
+    log_data = chatio.load_conversation(room, start_fresh)
     if start_fresh:
         session['start_fresh'] = False
-    log_lines = log_data.to_dict('records')
-    table = tables.ChatTable(log_lines)
-    suggestions = control.latest_suggestions(max=3)
+    table_lines = log_data.to_dict('records')
+    table = tables.ChatTable(table_lines)
+    suggestions = control.latest_suggestions()
     return render_template('chat.html', table=table, room=room, bot_name=bot.name,
                            suggestions=suggestions)
+
+
+@bp.route('/suggestions', methods=['GET', 'POST'])
+def suggestions():
+    suggestion_data = chatio.load_suggestions(start_fresh=False)
+    table_lines = suggestion_data.to_dict('records')
+    table = tables.SuggestionTable(table_lines)
+    form = SuggestionForm()
+    if form.validate_on_submit():
+        pattern = form.pattern.data
+        suggestion = form.suggestion.data
+        srai = form.srai.data
+        chatio.add_suggestion(pattern=pattern, message=suggestion, srai=srai)
+    return render_template('suggestions.html', table=table, form=form)
+
+

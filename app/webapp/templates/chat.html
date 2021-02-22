@@ -1,25 +1,36 @@
 {% extends "base.html" %}
 {% import 'bootstrap/wtf.html' as wtf %}
 {% block app_content %}
-{#    <div class="col-sm-8">#}
-    <div>
-        <h4 class="d-inline-block">Chatting with {{ bot_name }} in {{ room }}</h4>
-        <a class="text-muted" href="#" onclick="leave_room();">Leave this room</a>
-    </div><br>
-    <div id="chatContainer" style="overflow: auto; height: 300px;">
-        {{ table }}
+<div class="container">
+    <div class="col-md-9">
+        <div class="row">
+            <div class="col-md-6">
+                <h4 class="d-inline-block">Chatting with {{ bot_name }} in {{ room }}</h4>
+            </div>
+            <div class="col-md-2">  </div>
+            <div class="col-md-4" style="text-align: right">
+                <a class="text-small" href="#" onclick="leave_room();">(leave this room)</a>
+            </div>
+        </div>
+
+        <div class="row" id="chatContainer" style="overflow: auto; height: 300px;">
+            {{ table }}
+        </div>
+        <br/>
+        <input class=form-control id="text" type="text" size="80" placeholder="Enter your message here"><br>
+        <div class="row">
+            <h6 class="d-inline-block">Suggestions:</h6>
+            {% if suggestions %}
+                {% for suggestion, bot in suggestions.items() %}
+                    {% set format = 'btn-success' if bot.custom else 'btn-default' %}
+                    <button type="button" class="btn {{ format }} " onclick="use_suggestion('{{ suggestion }}')">{{ suggestion }}</button>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No ideas</p>
+            {% endif %}
+        </div>
     </div>
-    <input class=form-control id="text" type="text" size="80" placeholder="Enter your message here"><br>
-    <div class="col-sm-8">
-        <h6 class="d-inline-block">Suggestions:</h6>
-        {% if suggestions %}
-            {% for suggestion in suggestions %}
-                <button type="button" class="btn btn-default" onclick="use_suggestion('{{ suggestion }}')">{{ suggestion }}</button>
-            {% endfor %}
-        {% else %}
-            <p class="text-muted">No ideas</p>
-        {% endif %}
-    </div>
+</div>
 {% endblock %}
 {% block scripts %}
     {{ super() }}
@@ -33,12 +44,13 @@
                 socket.emit('joined', {});
             });
             socket.on('status', function(data) {
-                {#$('#chat').val($('#chat').val() + '<' + data.msg + '>\n');#}
+                // $('#chat').val($('#chat').val() + '<' + data.msg + '>\n');
                 $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
             });
             socket.on('message', function(data) {
-                {#$('#chat').val($('#chat').val() + data.msg + '\n');#}
-                {#$('#chat').scrollTop($('#chat')[0].scrollHeight);#}
+                // $('#chat').val($('#chat').val() + data.msg + '\n');
+                // $('#chat').scrollTop($('#chat')[0].scrollHeight);
+                // new message so load the page again to wait for input
                 window.location.href = "{{ url_for('main.chat') }}";
             });
             $('#text').keypress(function(e) {
@@ -63,4 +75,3 @@
         }
     </script>
 {% endblock %}
-
