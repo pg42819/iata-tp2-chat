@@ -121,6 +121,7 @@ def load_brain_or_learn(name, kernel, aiml_name, commands, aiml_file=None):
         else:
             # specific file so load it
             kernel.bootstrap(learnFiles=aiml_file, commands=commands)
+            kernel.learn(aiml_file)
         kernel.saveBrain(brain_file)
     else:
         kernel.bootstrap(brainFile=brain_file, commands=commands)
