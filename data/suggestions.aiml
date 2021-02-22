@@ -1,7 +1,10 @@
 <?xml version="1.0" ?>
 <aiml version="1.0">
 	<category>
-		<pattern>*</pattern>
-		<template>what do you mean <star/></template>
+		<pattern>HI *</pattern>
+		<template>
+			Well hello 
+			<star/>
+		</template>
 	</category>
 </aiml>

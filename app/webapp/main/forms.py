@@ -3,7 +3,7 @@ from wtforms.fields import StringField, SubmitField, SelectField, BooleanField
 from wtforms.validators import DataRequired, Length, Regexp, ValidationError
 
 from app.chat import bots
-from chatlog import chatio
+from app.chatlog import chatio
 
 class LoginForm(FlaskForm):
     """Accepts a nickname and room."""
@@ -31,8 +31,7 @@ class SuggestionForm(FlaskForm):
     submit = SubmitField('Add suggestion')
 
     def validate_pattern(self, pattern):
-        pass
-        # existing = chatio.get_suggestion_for(pattern=pattern.data)
-        # if existing is not None:
-        #     raise ValidationError('Please use a different pattern - this one is already used.')
+        existing = chatio.get_suggestion_for(pattern=pattern.data)
+        if existing is not None:
+            raise ValidationError('Please use a different pattern - this one is already used.')
 

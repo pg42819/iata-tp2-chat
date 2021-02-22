@@ -6,7 +6,7 @@ import xml.dom.minidom
 import os
 import xml.sax.saxutils as saxutils
 
-from chat import bots
+from app.chat import bots
 
 DATE_FORMAT = "%Y %m %d"
 TIME_FORMAT = "%H:%M:%S"
@@ -74,10 +74,17 @@ def to_aiml_template(message: str, srai):
     return template
 
 
+def to_aiml_pattern(pattern):
+    # patterns are uppercase, messages not
+    pattern = str(pattern).upper()
+    return pattern
+
+
 # Add a new custom suggestion, store it in csv and also in the AIML file
 # then update the bot based on the aiml file
 def add_suggestion(pattern, message, srai=True, start_fresh=False):
     template = to_aiml_template(message, srai)
+    pattern = to_aiml_pattern(pattern)
     add_suggestion_csv(pattern, template, start_fresh)
     add_suggestion_aiml(pattern, template, start_fresh)
     # update the suggest bot to reload the aiml
@@ -89,8 +96,6 @@ def add_suggestion_csv(pattern, message, start_fresh=False):
     f = open(str(csv_file), "a")
     # replace comma in case it message up csv
     message = str(message).replace(',', ';')
-    # patterns are uppercase, messages not
-    pattern = str(pattern).upper()
     csv_line = f'{pattern},{message}'
     f.write(csv_line + '\n')
     f.close()

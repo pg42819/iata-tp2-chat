@@ -71,6 +71,9 @@ def suggestions():
         suggestion = form.suggestion.data
         srai = form.srai.data
         chatio.add_suggestion(pattern=pattern, message=suggestion, srai=srai)
+        flash('New recommendation added to the SuggestBot.')
+        return redirect(url_for('.suggestions'))
+
     return render_template('suggestions.html', table=table, form=form)
 
 

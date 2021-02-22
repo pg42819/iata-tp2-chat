@@ -10,19 +10,10 @@ from flask_socketio import emit
 from app.chat import bots
 from app.chat.bots import Bot
 from app.chatlog.chatio import log_chat
-
 JS_ESCAPES = {
     '\\': '\\u005C',
-    '\'': '\\u0027',
-    '"': '\\u0022',
-    '>': '\\u003E',
-    '<': '\\u003C',
-    '&': '\\u0026',
-    '=': '\\u003D',
-    '-': '\\u002D',
-    ';': '\\u003B',
-    u'\u2028': '\\u2028',
-    u'\u2029': '\\u2029'
+    '\'': "",
+    '"': '',
 }
 # Escape every ASCII character with a value less than 32.
 JS_ESCAPES.update(('%c' % z, '\\u%04X' % z) for z in range(32))
