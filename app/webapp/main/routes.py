@@ -43,6 +43,7 @@ def chat():
     start_fresh = session.get('start_fresh', '')
     log_data = chatio.load_conversation(room, start_fresh)
     if start_fresh:
+        control.clear_suggestions()
         session['start_fresh'] = False
     table_lines: List[Dict] = log_data.to_dict('records')
 

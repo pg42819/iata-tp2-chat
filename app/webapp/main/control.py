@@ -10,6 +10,9 @@ from flask_socketio import emit
 from app.chat import bots
 from app.chat.bots import Bot
 from app.chatlog.chatio import log_chat
+
+from app.emotions import nltk_emotions
+
 JS_ESCAPES = {
     '\\': '\\u005C',
     '\'': "",
@@ -70,9 +73,9 @@ def emit_msg(type, room, user, msg):
     emit(type, {'msg': message}, room=room)
 
 
-def record_message(room, user, msg):
-    # store the message
-    log_chat(room, user, msg)
+def process_message(room, user, msg):
+    emotion = nltk_emotions.analyze(msg)
+    log_chat(room, user, msg, emotion)
     emit_msg('message', room, user, msg)
 
 
@@ -80,6 +83,8 @@ def update_suggestions(message):
     global _suggestions
     global _custom_suggestion
     for bot in suggestion_bots():
+        if bot.name == "SuggestBot":
+            bot.relearn()
         suggestion = bot.respond(message)
         flask.current_app.logger.info(f"{bot.name} suggests: {suggestion}")
         # using a dict to ensure no duplicate suggestions but skip empties
@@ -98,7 +103,7 @@ def escapejs(value):
 
 def react_to_message(room, user, msg):
     global _last_bot_response
-    record_message(room=room, user=user, msg=msg)
+    process_message(room=room, user=user, msg=msg)
     """ React to the users latest message, by asking a Bot to respond """
     bot = current_bot()
     bot_response = bot.respond(msg)
@@ -106,7 +111,7 @@ def react_to_message(room, user, msg):
     # Give some suggested responses to the bot message
     update_suggestions(bot_response)
     _last_bot_response = bot_response
-    record_message(room=room, user=bot.name, msg=bot_response)
+    process_message(room=room, user=bot.name, msg=bot_response)
     # emit_msg('bot', room, user, msg)
 
 

@@ -14,7 +14,7 @@ DATE_COMMA_TIME_FORMAT = f'{DATE_FORMAT},{TIME_FORMAT}'
 DATA_DIR = "data"
 LOG_DIR = "logs"
 AIML_DIR = "aiml"
-CHAT_LOG_COLS = 'date,time,user,message'
+CHAT_LOG_COLS = 'date,time,user,message,emotion'
 SUGGEST_FILE = "suggestions"
 SUGGEST_COLS = 'pattern,suggestion'
 
@@ -45,13 +45,13 @@ def find_chatlog(room, start_fresh=False):
     return find_csv_file(name=room, columns=CHAT_LOG_COLS, start_fresh=start_fresh)
 
 
-def log_chat(room, user, message):
+def log_chat(room, user, message, emotion):
     log_file = find_chatlog(room)
     f = open(str(log_file), "a")
     now = datetime.now()
     date_time = now.strftime(DATE_COMMA_TIME_FORMAT)
     message = str(message).replace(',', ';') # replace comma in case it message up csv
-    log_line = f'{date_time},{str(user)},{message}'
+    log_line = f'{date_time},{str(user)},{message},{emotion}'
     f.write(log_line + '\n')
     f.close()
 
@@ -148,8 +148,7 @@ def add_suggestion_aiml(pattern, template, start_fresh=False):
 
 def save_xml(root, file_path):
     xml_string = xml.dom.minidom.parseString(
-        etree.tostring(root, encoding="ISO-8859-1", xml_declaration=True)).toprettyxml()
-    xml_string = os.linesep.join([s for s in xml_string.splitlines() if s.strip()])  # remove the weird newline issue
+        etree.tostring(root, encoding="ISO-8859-1", xml_declaration=True)).toxml()
     xml_string = saxutils.unescape(xml_string)
     print(f"Saving XML:\n{xml_string}")
     with open(file_path, "w") as file_out:
@@ -160,12 +159,3 @@ def load_xml(file_path):
     tree = etree.parse(file_path)
     root = tree.getroot()
     return root
-
-
-def pretty_print_xml_given_file(input_xml, output_xml):
-    """
-    Useful for when you want to reformat an already existing xml file
-    """
-    tree = etree.parse(input_xml)
-    root = tree.getroot()
-    save_xml(root, output_xml)
